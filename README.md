@@ -1,7 +1,32 @@
-# FGN League — Availability Board
+# League Availability Board
 
-A tiny shared web app so your eFootball league can mark when they're free to play,
-and see at a glance when two players overlap.
+A tiny shared web app so any group — an esports league, a rec sports team, a
+D&D session, whatever — can mark when they're free, and see at a glance when
+two people overlap. No accounts, no passwords, one shared board.
+
+This was originally built for a friend group's eFootball league (hence the
+North/South division defaults you'll see throughout), but nothing about it is
+specific to eFootball, or to leagues at all — see **"Forking this for your own
+group"** below.
+
+## Forking this for your own group
+
+1. Click **Fork** at the top of this repo on GitHub — you now have your own
+   independent copy under your own account. Nothing you do to it affects the
+   original.
+2. You already have the code on GitHub at this point, so skip straight to
+   **step 2** in "Deploying for real" below (create your database on Neon) —
+   you don't need to push anything, unless you want to edit locally first (see
+   "Testing locally").
+3. Optional: rename the divisions, days, and hours to fit your group. Both are
+   single-array edits in `server.js` — see **"Adjusting divisions/groups"** and
+   **"Adjusting the days/hours shown"** below. The defaults (North/South,
+   Mon–Sun, 06:00–00:00) work fine as-is if they happen to fit.
+4. That's it — deploy it (same steps as anyone else, below) and you've got your
+   own live board, own database, own URL, fully independent of this original.
+
+This project is MIT-licensed (see `LICENSE`) — free to use, modify, and deploy
+for your own group, no permission needed.
 
 ## How the pieces fit together
 
@@ -25,16 +50,17 @@ Render's Environment settings, not via git — see **§3** and **§4** for detai
 
 - Anyone who opens the link can add themselves (pick a name, division, timezone) and
   start tapping their free times on a 7-day grid. **Open registration** — there's no
-  pre-loaded roster; the league starts empty each season and fills up as people join.
+  pre-loaded roster; the group starts empty and fills up as people join.
 - Everyone shares the **same board** — no accounts, no passwords.
-- A "Compare" tab lets you pick any two players — same division or across divisions
-  (handy for finals) — and shows the overlapping time slots, color-coded, with a
-  matching list of Day/Time slots alongside the grid on desktop, or below it on mobile.
+- A "Compare" tab lets you pick any two people — same division/group or across
+  them (handy for finals, or if your group doesn't really have divisions at all)
+  — and shows the overlapping time slots, color-coded, with a matching list of
+  Day/Time slots alongside the grid on desktop, or below it on mobile.
 - Data is stored in **Postgres**, so it survives restarts/redeploys wherever you host it.
 - **Timezone-aware.** Each player's timezone is auto-detected when they join (editable
   if it's wrong). Times are saved as universal, and everyone viewing the board — in
   "My Availability" or "Compare" — sees times converted into their own local clock.
-  A player in Montreal and a player in London can both use the app normally and the
+  Someone in Montreal and someone in London can both use the app normally and the
   overlap shown to each of them is correct for where they are.
 - Live clocks (with "you're set to [timezone]" / "current time in [timezone]" banners)
   sit above both the tap grid and the Compare overlap grid, so it's always obvious
@@ -42,6 +68,8 @@ Render's Environment settings, not via git — see **§3** and **§4** for detai
 - Next to each player's name: **wrong timezone?**, **switch player**, and
   **remove me** — all visible at a glance, no scrolling required.
 - The visible grid covers 06:00–00:00 by default (adjustable in `server.js`).
+- Divisions/groups default to North/South, but are a single-array edit — see
+  **"Adjusting divisions/groups"** below.
 - The app is fully self-contained — no external CDNs are relied on for functionality,
   so it works even with strict ad-blockers or privacy browsers like Brave Shields.
 - Desktop layouts widen to use available screen space; the Compare tab's match list
@@ -113,7 +141,9 @@ no traffic. The first person to open the link after a quiet spell will wait
 10–20 seconds for it to wake up — after that it's instant for everyone until it
 goes quiet again. Totally fine for a friend group checking availability.
 
-**This project's actual live setup**, for reference:
+**The original FGN league's live instance**, shown here purely as a working
+example — if you forked this repo, your deployment will be entirely separate,
+with your own URL and your own database:
 - GitHub repo: `w4ddy/FGN-scheduler`
 - Render URL: `https://fgn-scheduler.onrender.com`
 
@@ -258,3 +288,8 @@ division automatically.
   breaks.
 - `.env` is in `.gitignore` on purpose — never commit real database credentials to
   GitHub. Only `.env.example` (with placeholder values) should be in the repo.
+
+## License
+
+MIT — see [`LICENSE`](./LICENSE). Fork it, modify it, deploy it for your own
+group, no need to ask.
