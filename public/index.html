@@ -151,7 +151,8 @@
   .whoami{ display:flex; align-items:center; gap:8px; margin-bottom:14px; padding:10px 12px; background: var(--pitch-dark); border-radius:8px; border:1px solid var(--card-line); }
   .whoami .dot{ width:14px; height:14px; border-radius:50%; }
   .whoami .name{ font-family:'Teko',sans-serif; font-size:19px; letter-spacing:0.5px; }
-  .whoami .change{ font-size:12px; color:var(--lime); cursor:pointer; text-decoration: underline; margin-left:14px; }
+  .change{ font-size:12px; color:var(--lime); cursor:pointer; text-decoration: underline; }
+  .whoami .change{ margin-left:14px; }
 
   .clock-banner{
     display:flex; align-items:baseline; justify-content:space-between; gap:10px;
@@ -213,8 +214,11 @@
       </div>
       <div class="row">
         <div style="flex:1 1 100%;">
-          <label class="field-label">Your timezone</label>
-          <input type="text" id="timezoneInput" list="tzList" />
+          <div style="display:flex; align-items:baseline; justify-content:space-between;">
+            <label class="field-label" style="margin-bottom:0;">Your timezone</label>
+            <span class="change" id="browseTzBtn">see all options</span>
+          </div>
+          <input type="text" id="timezoneInput" list="tzList" style="margin-top:6px;" />
           <datalist id="tzList"></datalist>
           <p class="hint" style="margin-top:6px;">Detected automatically — only change this if it's wrong, or if you're playing from somewhere else this week.</p>
         </div>
@@ -422,6 +426,17 @@ document.getElementById('existingPlayerSelect').addEventListener('change', (e) =
   currentPlayerId = e.target.value;
   localStorage.setItem('fgn_player_id', currentPlayerId);
   renderAll();
+});
+
+// The timezone field's suggestion list only shows options that match what's
+// currently typed — since the field auto-fills with the full detected timezone
+// (e.g. "America/Montreal"), browsers show zero suggestions until that text is
+// cleared. This button does the clearing for people, since "delete everything
+// first" isn't an obvious first move otherwise.
+document.getElementById('browseTzBtn').addEventListener('click', () => {
+  const tzInput = document.getElementById('timezoneInput');
+  tzInput.value = '';
+  tzInput.focus();
 });
 
 document.getElementById('addPlayerBtn').addEventListener('click', async () => {
