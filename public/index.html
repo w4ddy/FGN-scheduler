@@ -112,6 +112,9 @@
     font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--chalk-dim);
     text-align:right; padding-right:8px; white-space:nowrap; width:56px;
   }
+  table.grid th.today{ color: var(--lime); }
+  table.grid th.today .date-label{ color: var(--lime); opacity:1; }
+  table.grid td.today-col{ background: rgba(198,255,61,0.05); }
   .cell{
     width: 100%; aspect-ratio: 1.3/1; min-height:28px; border-radius:5px; margin:2px;
     background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05);
@@ -119,6 +122,7 @@
   }
   .cell:active{ transform: scale(0.9); }
   .cell.on{ box-shadow: 0 0 8px 0 var(--glow, rgba(198,255,61,0.6)); }
+  .cell.now{ outline: 2px solid var(--lime); outline-offset: -2px; }
 
   .legend{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
   .legend .item{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--chalk-dim); }
@@ -343,6 +347,17 @@ function weekDateLabels(zone) {
   return labels;
 }
 
+// Returns today's day abbreviation and the current hour bucket (e.g. '14:00'),
+// in the given timezone — used to highlight "now" on the grid. The hour won't
+// match anything if it falls outside the visible HOURS range, which is fine —
+// the highlight just doesn't show, same as any other out-of-range time.
+function nowDayHour(zone) {
+  const now = DateTime.now().setZone(zone);
+  const day = STATE.days[now.weekday - 1];
+  const hour = now.toFormat('HH:00');
+  return { day, hour };
+}
+
 function localToUTC(day, hour, zone) {
   const dayIndex = STATE.days.indexOf(day);
   const monday = anchorMondayISO(zone);
@@ -517,11 +532,14 @@ function renderMyGrid() {
   }
 
   let dateLabels = weekDateLabels(myTz);
-  let thead = '<tr><td></td>' + STATE.days.map(d => `<th>${d}<div class="date-label">${dateLabels[d]}</div></th>`).join('') + '</tr>';
+  const today = nowDayHour(myTz);
+  let thead = '<tr><td></td>' + STATE.days.map(d => `<th class="${d===today.day?'today':''}">${d}<div class="date-label">${dateLabels[d]}</div></th>`).join('') + '</tr>';
   let rows = STATE.hours.map(h => {
     let cells = STATE.days.map(d => {
       const on = (availLocal[d] || []).includes(h);
-      return `<td><div class="cell${on?' on':''}" style="${on?`background:${me.color};--glow:${me.color}66`:''}" data-day="${d}" data-hour="${h}"></div></td>`;
+      const isNow = (d === today.day && h === today.hour);
+      const isTodayCol = (d === today.day);
+      return `<td class="${isTodayCol?'today-col':''}"><div class="cell${on?' on':''}${isNow?' now':''}" style="${on?`background:${me.color};--glow:${me.color}66`:''}" data-day="${d}" data-hour="${h}"></div></td>`;
     }).join('');
     return `<tr><td class="hourlabel">${h}</td>${cells}</tr>`;
   }).join('');
@@ -610,12 +628,15 @@ function renderCompareResult() {
 
   const table = document.getElementById('compareGrid');
   const dateLabels = weekDateLabels(viewerTz);
-  let thead = '<tr><td></td>' + STATE.days.map(d => `<th>${d}<div class="date-label">${dateLabels[d]}</div></th>`).join('') + '</tr>';
+  const today = nowDayHour(viewerTz);
+  let thead = '<tr><td></td>' + STATE.days.map(d => `<th class="${d===today.day?'today':''}">${d}<div class="date-label">${dateLabels[d]}</div></th>`).join('') + '</tr>';
   const matches = [];
   let rows = STATE.hours.map(h => {
     let cells = STATE.days.map(d => {
       const onA = (availA[d]||[]).includes(h);
       const onB = (availB[d]||[]).includes(h);
+      const isNow = (d === today.day && h === today.hour);
+      const isTodayCol = (d === today.day);
       let style = '';
       if (onA && onB) {
         style = `background: linear-gradient(135deg, ${a.color} 50%, ${b.color} 50%); box-shadow:0 0 10px 0 rgba(198,255,61,0.5);`;
@@ -625,7 +646,7 @@ function renderCompareResult() {
       } else if (onB) {
         style = `background:${b.color}33;`;
       }
-      return `<td><div class="cell" style="${style}"></div></td>`;
+      return `<td class="${isTodayCol?'today-col':''}"><div class="cell${isNow?' now':''}" style="${style}"></div></td>`;
     }).join('');
     return `<tr><td class="hourlabel">${h}</td>${cells}</tr>`;
   }).join('');
