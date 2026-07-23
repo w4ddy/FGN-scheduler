@@ -104,6 +104,10 @@
     font-family:'Teko', sans-serif; font-size:15px; letter-spacing:0.5px; color:var(--chalk-dim);
     text-transform:uppercase; padding-bottom:6px; font-weight:600;
   }
+  table.grid th .date-label{
+    font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0; color:var(--chalk-dim);
+    text-transform:none; font-weight:500; opacity:0.7; margin-top:1px;
+  }
   table.grid td.hourlabel{
     font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--chalk-dim);
     text-align:right; padding-right:8px; white-space:nowrap; width:56px;
@@ -323,6 +327,18 @@ function anchorMondayISO(zone) {
   return monday;
 }
 
+// Maps each day abbreviation (Mon..Sun) to the actual calendar date for the
+// current week, in the given timezone — e.g. { Mon: 'Jul 21', Tue: 'Jul 22', ... }
+// Purely a display label; the underlying schedule stays a recurring weekly template.
+function weekDateLabels(zone) {
+  const monday = anchorMondayISO(zone);
+  const labels = {};
+  STATE.days.forEach((d, i) => {
+    labels[d] = monday.plus({ days: i }).toFormat('LLL d');
+  });
+  return labels;
+}
+
 function localToUTC(day, hour, zone) {
   const dayIndex = STATE.days.indexOf(day);
   const monday = anchorMondayISO(zone);
@@ -485,7 +501,8 @@ function renderMyGrid() {
     }
   }
 
-  let thead = '<tr><td></td>' + STATE.days.map(d => `<th>${d}</th>`).join('') + '</tr>';
+  let dateLabels = weekDateLabels(myTz);
+  let thead = '<tr><td></td>' + STATE.days.map(d => `<th>${d}<div class="date-label">${dateLabels[d]}</div></th>`).join('') + '</tr>';
   let rows = STATE.hours.map(h => {
     let cells = STATE.days.map(d => {
       const on = (availLocal[d] || []).includes(h);
@@ -577,7 +594,8 @@ function renderCompareResult() {
   const availB = toViewerLocal(availBUTC);
 
   const table = document.getElementById('compareGrid');
-  let thead = '<tr><td></td>' + STATE.days.map(d => `<th>${d}</th>`).join('') + '</tr>';
+  const dateLabels = weekDateLabels(viewerTz);
+  let thead = '<tr><td></td>' + STATE.days.map(d => `<th>${d}<div class="date-label">${dateLabels[d]}</div></th>`).join('') + '</tr>';
   const matches = [];
   let rows = STATE.hours.map(h => {
     let cells = STATE.days.map(d => {
