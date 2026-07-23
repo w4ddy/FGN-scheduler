@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>FGN League — Availability Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600;700&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="/luxon.min.js"></script>
+<style>
+  :root{
+    --pitch: #0B1F17;
+    --pitch-dark: #081712;
+    --card: #12261D;
+    --card-line: #1E3B2C;
+    --chalk: #F2F5EF;
+    --chalk-dim: #9FB8AA;
+    --lime: #C6FF3D;
+    --amber: #FFB84D;
+    --danger: #FF6B6B;
+    --radius: 10px;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--pitch);
+    background-image:
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 40px, transparent 40px, transparent 80px);
+    color: var(--chalk);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    padding-bottom: 60px;
+  }
+  .wrap{ max-width: 760px; margin: 0 auto; padding: 18px 14px 0; }
+
+  /* ---- header ---- */
+  header{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 18px; }
+  .crest{ display:flex; align-items:center; gap:10px; }
+  .crest .mark{
+    width:42px; height:42px; border-radius: 8px;
+    background: linear-gradient(155deg, var(--lime), #7bd12a);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Teko', sans-serif; font-weight:700; font-size:22px; color:var(--pitch-dark);
+    box-shadow: 0 0 0 2px rgba(198,255,61,0.25), 0 4px 14px rgba(198,255,61,0.15);
+  }
+  .crest h1{
+    font-family:'Teko', sans-serif; font-weight:600; letter-spacing:0.5px;
+    font-size:26px; line-height:1; margin:0;
+  }
+  .crest p{ margin:0; font-size:12px; color:var(--chalk-dim); letter-spacing:1.5px; text-transform:uppercase; }
+
+  /* ---- tabs ---- */
+  .tabs{ display:flex; gap:6px; background:var(--card); border:1px solid var(--card-line); border-radius: 999px; padding:4px; margin-bottom:18px; }
+  .tab{
+    flex:1; text-align:center; padding:9px 10px; border-radius:999px; cursor:pointer;
+    font-family:'Teko', sans-serif; font-size:17px; letter-spacing:1px; text-transform:uppercase;
+    color:var(--chalk-dim); transition: all .15s ease; user-select:none;
+  }
+  .tab.active{ background: var(--lime); color: var(--pitch-dark); font-weight:600; }
+
+  .panel{ display:none; }
+  .panel.active{ display:block; }
+
+  .card{
+    background: var(--card); border:1px solid var(--card-line); border-radius: var(--radius);
+    padding: 16px; margin-bottom: 16px;
+  }
+  .card h2{
+    font-family:'Teko', sans-serif; font-size:20px; letter-spacing:1px; text-transform:uppercase;
+    margin: 0 0 12px; color: var(--chalk); font-weight:600;
+  }
+  label.field-label{ display:block; font-size:12px; color:var(--chalk-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+
+  select, input[type=text]{
+    width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--card-line);
+    background: var(--pitch-dark); color: var(--chalk); font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:600;
+  }
+  select:focus, input:focus{ outline:2px solid var(--lime); outline-offset:1px; }
+  select optgroup{ color: var(--lime); font-weight:600; background: var(--pitch-dark); }
+  select option{ color: var(--chalk); background: var(--pitch-dark); font-weight:500; }
+
+  .row{ display:flex; gap:10px; margin-bottom:12px; }
+  .row > *{ flex:1; }
+
+  button.primary{
+    background: var(--lime); color: var(--pitch-dark); border:none; border-radius:8px;
+    padding:10px 16px; font-family:'Teko',sans-serif; font-size:17px; letter-spacing:1px; text-transform:uppercase;
+    font-weight:700; cursor:pointer;
+  }
+  button.primary:disabled{ opacity:0.35; cursor:not-allowed; }
+
+  .player-chip{
+    display:inline-flex; align-items:center; gap:6px; padding:5px 10px 5px 6px; border-radius:999px;
+    background: var(--pitch-dark); border:1px solid var(--card-line); font-size:13px; margin:3px 4px 3px 0;
+  }
+  .player-chip .dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .player-chip .del{ color:var(--chalk-dim); cursor:pointer; font-weight:700; margin-left:2px; }
+
+  /* ---- grid ---- */
+  .grid-scroll{ overflow-x:auto; -webkit-overflow-scrolling: touch; }
+  table.grid{ border-collapse: collapse; width:100%; min-width: 520px; max-width: 900px; margin:0 auto; table-layout: fixed; }
+  table.grid th, table.grid td{ text-align:center; padding:0; }
+  table.grid th{
+    font-family:'Teko', sans-serif; font-size:15px; letter-spacing:0.5px; color:var(--chalk-dim);
+    text-transform:uppercase; padding-bottom:6px; font-weight:600;
+  }
+  table.grid td.hourlabel{
+    font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--chalk-dim);
+    text-align:right; padding-right:8px; white-space:nowrap; width:56px;
+  }
+  .cell{
+    width: 100%; aspect-ratio: 1.3/1; min-height:28px; border-radius:5px; margin:2px;
+    background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05);
+    cursor:pointer; transition: transform .08s ease;
+  }
+  .cell:active{ transform: scale(0.9); }
+  .cell.on{ box-shadow: 0 0 8px 0 var(--glow, rgba(198,255,61,0.6)); }
+
+  .legend{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  .legend .item{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--chalk-dim); }
+  .legend .sw{ width:12px; height:12px; border-radius:3px; }
+
+  .match-list{ margin-top:14px; }
+  .match-slot{
+    display:flex; justify-content:space-between; align-items:center;
+    background: var(--pitch-dark); border:1px solid var(--card-line); border-left:4px solid var(--lime);
+    border-radius:6px; padding:9px 12px; margin-bottom:6px; font-family:'JetBrains Mono', monospace; font-size:13px;
+  }
+  .match-slot .day{ font-family:'Teko', sans-serif; font-size:17px; letter-spacing:1px; color:var(--chalk); }
+  .empty-state{ text-align:center; padding: 24px 10px; color:var(--chalk-dim); font-size:14px; }
+  .empty-state b{ color: var(--chalk); }
+
+  /* ---- compare layout: stacked on mobile, side-by-side on desktop ---- */
+  .compare-layout{ display:flex; flex-direction:column; gap:16px; }
+  .compare-grid-col{ min-width:0; }
+  .compare-match-col{ }
+
+  @media (min-width: 860px){
+    .wrap{ max-width: min(1300px, 94vw); padding-left:24px; padding-right:24px; }
+    .compare-layout{ flex-direction:row; align-items:flex-start; }
+    .compare-grid-col{ flex:1 1 60%; }
+    .compare-match-col{ flex:0 0 340px; max-height: 720px; overflow-y:auto; padding-right:2px; }
+    .compare-match-col .match-list{ margin-top:0; }
+  }
+
+  .hint{ font-size:12px; color:var(--chalk-dim); margin-top:8px; line-height:1.5; }
+  .whoami{ display:flex; align-items:center; gap:8px; margin-bottom:14px; padding:10px 12px; background: var(--pitch-dark); border-radius:8px; border:1px solid var(--card-line); }
+  .whoami .dot{ width:14px; height:14px; border-radius:50%; }
+  .whoami .name{ font-family:'Teko',sans-serif; font-size:19px; letter-spacing:0.5px; }
+  .whoami .change{ font-size:12px; color:var(--lime); cursor:pointer; text-decoration: underline; margin-left:14px; }
+
+  .clock-banner{
+    display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+    background: linear-gradient(90deg, rgba(198,255,61,0.10), rgba(198,255,61,0.02));
+    border:1px solid rgba(198,255,61,0.25); border-radius:8px; padding:10px 14px; margin-bottom:16px;
+  }
+  .clock-banner .clock-tz{ font-size:13px; color:var(--chalk-dim); letter-spacing:0.5px; }
+  .clock-banner .clock-tz b{ color:var(--lime); font-weight:600; }
+  .clock-banner .clock-time{
+    font-family:'JetBrains Mono', monospace; font-size:20px; color:var(--chalk); font-weight:500; letter-spacing:1px;
+  }
+
+  .leave-link{ font-size:12px; color:var(--chalk-dim); text-decoration:underline; cursor:pointer; }
+  .leave-link:hover{ color:var(--danger); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="crest">
+      <div class="mark">FGN</div>
+      <div>
+        <h1>League Availability</h1>
+        <p>North &amp; South Divisions</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="mine">My Availability</div>
+    <div class="tab" data-tab="compare">Compare</div>
+  </div>
+
+  <!-- ===== MY AVAILABILITY ===== -->
+  <div class="panel active" id="panel-mine">
+
+    <div class="card" id="chooseNameCard">
+      <h2>Who are you?</h2>
+      <div class="row">
+        <div>
+          <label class="field-label">Existing player</label>
+          <select id="existingPlayerSelect">
+            <option value="">— select —</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label class="field-label">Or add yourself</label>
+          <input type="text" id="newPlayerName" placeholder="Your name" maxlength="24" />
+        </div>
+        <div>
+          <label class="field-label">Division</label>
+          <select id="newPlayerDivision">
+            <option value="North">North</option>
+            <option value="South">South</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div style="flex:1 1 100%;">
+          <label class="field-label">Your timezone</label>
+          <input type="text" id="timezoneInput" list="tzList" />
+          <datalist id="tzList"></datalist>
+          <p class="hint" style="margin-top:6px;">Detected automatically — only change this if it's wrong, or if you're playing from somewhere else this week.</p>
+        </div>
+      </div>
+      <button class="primary" id="addPlayerBtn">Join league</button>
+      <p class="hint">Pick your name from the list if you've already been added, or type it once and you're set — everyone shares this board. Times are stored per-player and converted automatically, so everyone always sees times in their own timezone.</p>
+    </div>
+
+    <div class="card" id="editGridCard" style="display:none;">
+      <div class="whoami">
+        <div class="dot" id="whoamiDot"></div>
+        <div class="name" id="whoamiName"></div>
+        <div class="change" id="fixTimezoneBtn" style="margin-left:auto;">wrong timezone?</div>
+        <div class="change" id="changePlayerBtn">switch player</div>
+        <div class="change leave-link" id="leaveLeagueBtn">remove me</div>
+      </div>
+      <div class="clock-banner" id="clockBanner">
+        <div class="clock-tz" id="clockTz"></div>
+        <div class="clock-time" id="clockTime"></div>
+      </div>
+      <h2>Tap the times you're free</h2>
+      <p class="hint" style="margin-top:-6px;">Green = you're available. Tap again to clear a slot. Everything saves instantly for the whole group.</p>
+      <div class="grid-scroll">
+        <table class="grid" id="myGrid"></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== COMPARE ===== -->
+  <div class="panel" id="panel-compare">
+    <div class="card">
+      <h2>Compare</h2>
+      <div class="row">
+        <div>
+          <label class="field-label">Player A</label>
+          <select id="playerASelect"></select>
+        </div>
+        <div>
+          <label class="field-label">Player B</label>
+          <select id="playerBSelect"></select>
+        </div>
+      </div>
+      <p class="hint" style="margin-top:8px;">Players are grouped by division below — pick any two to compare, including across divisions for finals.</p>
+    </div>
+
+    <div class="card" id="compareResultCard" style="display:none;">
+      <h2>Overlap</h2>
+      <p class="hint" id="viewerTzNote" style="margin-top:-6px;"></p>
+      <div class="clock-banner" id="compareClockBanner">
+        <div class="clock-tz" id="compareClockTz"></div>
+        <div class="clock-time" id="compareClockTime"></div>
+      </div>
+      <div class="compare-layout">
+        <div class="compare-grid-col">
+          <div class="grid-scroll">
+            <table class="grid" id="compareGrid"></table>
+          </div>
+          <div class="legend" id="compareLegend"></div>
+        </div>
+        <div class="compare-match-col">
+          <div class="match-list" id="matchList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="compareEmptyCard">
+      <div class="empty-state">Pick two players in the same division to see when they can both play.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+let STATE = { players: [], availability: {}, days: [], hours: [] };
+let currentPlayerId = localStorage.getItem('fgn_player_id') || null;
+
+const { DateTime } = luxon;
+
+// The browser's own detected timezone — used as the default when joining,
+// and as the "viewing" timezone when comparing two other players.
+const BROWSER_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
+const COMMON_TZS = [
+  'America/Montreal','America/New_York','America/Chicago','America/Denver','America/Los_Angeles',
+  'America/Sao_Paulo','America/Mexico_City','America/Toronto','America/Vancouver',
+  'Europe/London','Europe/Paris','Europe/Berlin','Europe/Madrid','Europe/Rome','Europe/Lisbon','Europe/Dublin',
+  'Africa/Cairo','Africa/Lagos','Africa/Johannesburg',
+  'Asia/Dubai','Asia/Kolkata','Asia/Shanghai','Asia/Tokyo','Asia/Singapore',
+  'Australia/Sydney','Pacific/Auckland'
+];
+
+// Validates a timezone string the way Luxon will actually use it, so a bad
+// manual entry (e.g. "montreal" instead of "America/Montreal") gets caught
+// immediately instead of silently saving and breaking every time display.
+function isValidTimezone(zone) {
+  return DateTime.now().setZone(zone).isValid;
+}
+
+function populateTzDatalist() {
+  const dl = document.getElementById('tzList');
+  if (!dl) return;
+  const zones = Array.from(new Set([BROWSER_TZ, ...COMMON_TZS]));
+  dl.innerHTML = zones.map(z => `<option value="${z}"></option>`).join('');
+}
+
+// Availability is always stored on the server as UTC day/hour.
+// These two helpers translate between a player's local wall-clock time and UTC,
+// anchored to the current calendar week so DST is handled correctly for "right now".
+function anchorMondayISO(zone) {
+  const now = DateTime.now().setZone(zone);
+  const monday = now.minus({ days: now.weekday - 1 }).startOf('day');
+  return monday;
+}
+
+function localToUTC(day, hour, zone) {
+  const dayIndex = STATE.days.indexOf(day);
+  const monday = anchorMondayISO(zone);
+  const localDt = monday.plus({ days: dayIndex }).set({
+    hour: parseInt(hour.split(':')[0], 10), minute: 0, second: 0, millisecond: 0
+  });
+  const utcDt = localDt.toUTC();
+  return { day: STATE.days[(utcDt.weekday - 1 + 7) % 7], hour: utcDt.toFormat('HH:00') };
+}
+
+function utcToLocal(day, hour, zone) {
+  const dayIndex = STATE.days.indexOf(day);
+  const monday = anchorMondayISO('utc');
+  const utcDt = monday.plus({ days: dayIndex }).set({
+    hour: parseInt(hour.split(':')[0], 10), minute: 0, second: 0, millisecond: 0
+  });
+  const localDt = utcDt.setZone(zone);
+  return { day: STATE.days[(localDt.weekday - 1 + 7) % 7], hour: localDt.toFormat('HH:00') };
+}
+
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  return res.json();
+}
+
+async function loadState() {
+  STATE = await api('/api/state');
+  renderAll();
+}
+
+function renderAll() {
+  populateTzDatalist();
+  const tzInput = document.getElementById('timezoneInput');
+  if (tzInput && !tzInput.value) tzInput.value = BROWSER_TZ;
+  renderNameCard();
+  renderMyGrid();
+  renderCompareSelectors();
+}
+
+// ---------- MY AVAILABILITY ----------
+function renderNameCard() {
+  const sel = document.getElementById('existingPlayerSelect');
+  sel.innerHTML = '<option value="">— select —</option>' + STATE.players
+    .slice().sort((a,b)=>a.name.localeCompare(b.name))
+    .map(p => `<option value="${p.id}">${p.name} (${p.division})</option>`).join('');
+
+  const me = STATE.players.find(p => p.id === currentPlayerId);
+  document.getElementById('chooseNameCard').style.display = me ? 'none' : 'block';
+  document.getElementById('editGridCard').style.display = me ? 'block' : 'none';
+  if (me) {
+    document.getElementById('whoamiDot').style.background = me.color;
+    document.getElementById('whoamiName').textContent = `${me.name} — ${me.division}`;
+    startClock('main', me.timezone || BROWSER_TZ, 'clockTz', 'clockTime',
+      tz => `You're set to <b>${tz}</b> — everything you tap below is in this timezone:`);
+  } else {
+    stopClock('main');
+  }
+  if (currentPlayerId) sel.value = currentPlayerId;
+}
+
+const clockIntervals = {};
+function startClock(key, tz, tzElId, timeElId, labelFn) {
+  stopClock(key);
+  const tzEl = document.getElementById(tzElId);
+  const timeEl = document.getElementById(timeElId);
+  if (!tzEl || !timeEl) return;
+  function tick() {
+    const now = DateTime.now().setZone(tz);
+    tzEl.innerHTML = labelFn(tz);
+    timeEl.textContent = now.toFormat('ccc, HH:mm:ss');
+  }
+  tick();
+  clockIntervals[key] = setInterval(tick, 1000);
+}
+function stopClock(key) {
+  if (clockIntervals[key]) { clearInterval(clockIntervals[key]); clockIntervals[key] = null; }
+}
+
+document.getElementById('existingPlayerSelect').addEventListener('change', (e) => {
+  if (!e.target.value) return;
+  currentPlayerId = e.target.value;
+  localStorage.setItem('fgn_player_id', currentPlayerId);
+  renderAll();
+});
+
+document.getElementById('addPlayerBtn').addEventListener('click', async () => {
+  const name = document.getElementById('newPlayerName').value.trim();
+  const division = document.getElementById('newPlayerDivision').value;
+  const timezone = document.getElementById('timezoneInput').value.trim() || BROWSER_TZ;
+  if (!name) return;
+  if (!isValidTimezone(timezone)) {
+    alert(`"${timezone}" doesn't look like a valid timezone. Try something like "America/Montreal" or "Europe/London" — or pick one from the suggestions as you type.`);
+    return;
+  }
+  const { player } = await api('/api/players', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ name, division, timezone })
+  });
+  currentPlayerId = player.id;
+  localStorage.setItem('fgn_player_id', currentPlayerId);
+  // If this player already existed (e.g. a seeded roster name) but had no timezone set yet,
+  // make sure their timezone reflects what was just entered.
+  await api(`/api/players/${player.id}/timezone`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ timezone })
+  });
+  await loadState();
+});
+
+document.getElementById('changePlayerBtn').addEventListener('click', () => {
+  currentPlayerId = null;
+  localStorage.removeItem('fgn_player_id');
+  renderAll();
+});
+
+document.getElementById('leaveLeagueBtn').addEventListener('click', async () => {
+  const me = STATE.players.find(p => p.id === currentPlayerId);
+  if (!me) return;
+  const confirmed = confirm(`Remove ${me.name} from the league? This deletes their saved availability too. This can't be undone.`);
+  if (!confirmed) return;
+  await api(`/api/players/${me.id}`, { method: 'DELETE' });
+  currentPlayerId = null;
+  localStorage.removeItem('fgn_player_id');
+  stopClock();
+  await loadState();
+});
+
+document.getElementById('fixTimezoneBtn').addEventListener('click', async () => {
+  const me = STATE.players.find(p => p.id === currentPlayerId);
+  if (!me) return;
+  const suggestion = me.timezone || BROWSER_TZ;
+  const input = prompt('Your timezone (e.g. America/Montreal, Europe/London):', suggestion);
+  if (!input || !input.trim()) return;
+  const timezone = input.trim();
+  if (!isValidTimezone(timezone)) {
+    alert(`"${timezone}" doesn't look like a valid timezone. Try something like "America/Montreal" or "Europe/London".`);
+    return;
+  }
+  await api(`/api/players/${me.id}/timezone`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ timezone })
+  });
+  await loadState();
+});
+
+function renderMyGrid() {
+  const me = STATE.players.find(p => p.id === currentPlayerId);
+  const table = document.getElementById('myGrid');
+  if (!me) { table.innerHTML=''; return; }
+  const myTz = me.timezone || BROWSER_TZ;
+  const availUTC = STATE.availability[me.id] || {};
+
+  // Convert the stored UTC slots into this player's own local time for display.
+  const availLocal = {};
+  for (const d of STATE.days) {
+    for (const h of (availUTC[d] || [])) {
+      const local = utcToLocal(d, h, myTz);
+      if (!availLocal[local.day]) availLocal[local.day] = [];
+      availLocal[local.day].push(local.hour);
+    }
+  }
+
+  let thead = '<tr><td></td>' + STATE.days.map(d => `<th>${d}</th>`).join('') + '</tr>';
+  let rows = STATE.hours.map(h => {
+    let cells = STATE.days.map(d => {
+      const on = (availLocal[d] || []).includes(h);
+      return `<td><div class="cell${on?' on':''}" style="${on?`background:${me.color};--glow:${me.color}66`:''}" data-day="${d}" data-hour="${h}"></div></td>`;
+    }).join('');
+    return `<tr><td class="hourlabel">${h}</td>${cells}</tr>`;
+  }).join('');
+  table.innerHTML = thead + rows;
+
+  table.querySelectorAll('.cell').forEach(cell => {
+    cell.addEventListener('click', async () => {
+      const localDay = cell.dataset.day, localHour = cell.dataset.hour;
+      const wasOn = cell.classList.contains('on');
+      cell.classList.toggle('on');
+      cell.style.background = wasOn ? '' : me.color;
+      cell.style.setProperty('--glow', wasOn ? '' : me.color + '66');
+
+      // Convert what was tapped (in the player's local time) into UTC before saving.
+      const { day, hour } = localToUTC(localDay, localHour, myTz);
+      const { availability } = await api('/api/availability', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ playerId: me.id, day, hour })
+      });
+      STATE.availability[me.id] = availability;
+    });
+  });
+}
+
+// ---------- COMPARE ----------
+function renderCompareSelectors() {
+  const byDivision = (div) => STATE.players
+    .filter(p => p.division === div)
+    .sort((a,b)=>a.name.localeCompare(b.name))
+    .map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+
+  const optHtml = '<option value="">— select —</option>'
+    + `<optgroup label="North">${byDivision('North')}</optgroup>`
+    + `<optgroup label="South">${byDivision('South')}</optgroup>`;
+
+  const selA = document.getElementById('playerASelect');
+  const selB = document.getElementById('playerBSelect');
+  selA.innerHTML = optHtml;
+  selB.innerHTML = optHtml;
+  renderCompareResult();
+}
+
+['playerASelect','playerBSelect'].forEach(id => {
+  document.getElementById(id).addEventListener('change', renderCompareResult);
+});
+
+function renderCompareResult() {
+  const aId = document.getElementById('playerASelect').value;
+  const bId = document.getElementById('playerBSelect').value;
+  const resultCard = document.getElementById('compareResultCard');
+  const emptyCard = document.getElementById('compareEmptyCard');
+
+  if (!aId || !bId || aId === bId) {
+    resultCard.style.display = 'none';
+    emptyCard.style.display = 'block';
+    stopClock('compare');
+    return;
+  }
+  resultCard.style.display = 'block';
+  emptyCard.style.display = 'none';
+  document.getElementById('viewerTzNote').textContent = `Showing times in your timezone: ${BROWSER_TZ}`;
+  startClock('compare', BROWSER_TZ, 'compareClockTz', 'compareClockTime',
+    tz => `Current time in <b>${tz}</b>:`);
+
+  const a = STATE.players.find(p => p.id === aId);
+  const b = STATE.players.find(p => p.id === bId);
+  const availAUTC = STATE.availability[aId] || {};
+  const availBUTC = STATE.availability[bId] || {};
+
+  // Show everything in the viewer's own browser timezone, so whoever's looking
+  // at this screen sees the overlap in times that make sense to them.
+  const viewerTz = BROWSER_TZ;
+  function toViewerLocal(availUTC) {
+    const local = {};
+    for (const d of STATE.days) {
+      for (const h of (availUTC[d] || [])) {
+        const conv = utcToLocal(d, h, viewerTz);
+        if (!local[conv.day]) local[conv.day] = [];
+        local[conv.day].push(conv.hour);
+      }
+    }
+    return local;
+  }
+  const availA = toViewerLocal(availAUTC);
+  const availB = toViewerLocal(availBUTC);
+
+  const table = document.getElementById('compareGrid');
+  let thead = '<tr><td></td>' + STATE.days.map(d => `<th>${d}</th>`).join('') + '</tr>';
+  const matches = [];
+  let rows = STATE.hours.map(h => {
+    let cells = STATE.days.map(d => {
+      const onA = (availA[d]||[]).includes(h);
+      const onB = (availB[d]||[]).includes(h);
+      let style = '';
+      if (onA && onB) {
+        style = `background: linear-gradient(135deg, ${a.color} 50%, ${b.color} 50%); box-shadow:0 0 10px 0 rgba(198,255,61,0.5);`;
+        matches.push({ day: d, hour: h });
+      } else if (onA) {
+        style = `background:${a.color}33;`;
+      } else if (onB) {
+        style = `background:${b.color}33;`;
+      }
+      return `<td><div class="cell" style="${style}"></div></td>`;
+    }).join('');
+    return `<tr><td class="hourlabel">${h}</td>${cells}</tr>`;
+  }).join('');
+  table.innerHTML = thead + rows;
+
+  document.getElementById('compareLegend').innerHTML = `
+    <div class="item"><div class="sw" style="background:${a.color}"></div>${a.name} only</div>
+    <div class="item"><div class="sw" style="background:${b.color}"></div>${b.name} only</div>
+    <div class="item"><div class="sw" style="background:linear-gradient(135deg,${a.color} 50%,${b.color} 50%)"></div>Both free</div>
+  `;
+
+  const matchListEl = document.getElementById('matchList');
+  if (matches.length === 0) {
+    matchListEl.innerHTML = `<div class="empty-state">No overlapping times yet between <b>${a.name}</b> and <b>${b.name}</b>.</div>`;
+  } else {
+    // order by day (Mon-Sun) then hour
+    const dayOrder = STATE.days;
+    matches.sort((x,y) => dayOrder.indexOf(x.day) - dayOrder.indexOf(y.day) || STATE.hours.indexOf(x.hour) - STATE.hours.indexOf(y.hour));
+    matchListEl.innerHTML = matches.map(m => `<div class="match-slot"><span class="day">${m.day}</span><span>${m.hour}</span></div>`).join('');
+  }
+}
+
+// ---------- TABS ----------
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+loadState();
+</script>
+</body>
+</html>
