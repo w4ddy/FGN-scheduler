@@ -210,6 +210,27 @@ adjusts automatically to whatever list you put here. If you change this after
 people have already saved availability, old saved slots outside the new range just
 won't show (they're not deleted, so reverting the range brings them back).
 
+## Adjusting divisions/groups
+
+Right below `DAYS`/`HOURS` in `server.js`:
+
+```js
+const DIVISIONS = ['North', 'South'];
+```
+
+This is the **one** place division/group names live — rename them, add more, remove
+one, whatever fits your league (e.g. `['Team A', 'Team B', 'Team C']`, or even just
+`['Everyone']` if you don't need groups at all). The join form's dropdown, the
+Compare tab's groupings, and the header subtitle all read from this list
+automatically — nothing else in the code needs to change.
+
+If you're changing this on an **already-deployed** app with existing players: past
+players keep whatever division they joined under. If you remove a division name
+that people are currently using, they won't be deletable/editable through the UI
+until you either add that name back to the list or manually update their row in
+the database — this app doesn't currently migrate existing players to a renamed
+division automatically.
+
 ## A note on timezones
 
 - The visible hour range (`12:00`–`00:00` by default) applies to whichever timezone

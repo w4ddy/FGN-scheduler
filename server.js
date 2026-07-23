@@ -24,6 +24,13 @@ const pool = new Pool({
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const HOURS = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00','00:00'];
 
+// ---- group/division config ----
+// The names of the groups players choose between when they join (e.g. divisions,
+// conferences, teams — whatever fits your league). Add, remove, or rename entries
+// freely; everything else (the join form, validation, and the Compare tab's
+// groupings) reads from this single list automatically. Needs at least one entry.
+const DIVISIONS = ['North', 'South'];
+
 const COLORS = [
   '#C6FF3D', '#3DDCFF', '#FF6B6B', '#FFD93D', '#B388FF',
   '#4DFFB8', '#FF9F4D', '#6B9BFF', '#FF4DD8', '#4DFF6B',
@@ -38,7 +45,7 @@ async function initSchema() {
     CREATE TABLE IF NOT EXISTS players (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
-      division TEXT NOT NULL CHECK (division IN ('North','South')),
+      division TEXT NOT NULL,
       color TEXT NOT NULL,
       timezone TEXT NOT NULL DEFAULT 'UTC',
       UNIQUE (name, division)
@@ -46,6 +53,11 @@ async function initSchema() {
   `);
   // Safe to run even if the column already exists (won't touch existing data).
   await pool.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS timezone TEXT NOT NULL DEFAULT 'UTC';`);
+  // Earlier versions hardcoded division to only 'North'/'South' via a DB-level
+  // CHECK constraint. Divisions are now configurable (see DIVISIONS above) and
+  // validated in the application instead, so drop the old constraint if present.
+  // Safe to run repeatedly — does nothing once already dropped, and never touches data.
+  await pool.query(`ALTER TABLE players DROP CONSTRAINT IF EXISTS players_division_check;`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS availability (
       player_id TEXT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
@@ -75,7 +87,7 @@ app.get('/api/state', async (req, res) => {
       availability[row.player_id][row.day].push(row.hour);
     }
 
-    res.json({ players: playersRes.rows, availability, days: DAYS, hours: HOURS });
+    res.json({ players: playersRes.rows, availability, days: DAYS, hours: HOURS, divisions: DIVISIONS });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load state' });
@@ -85,8 +97,8 @@ app.get('/api/state', async (req, res) => {
 // Add a new player
 app.post('/api/players', async (req, res) => {
   const { name, division, timezone } = req.body;
-  if (!name || !name.trim() || !['North', 'South'].includes(division)) {
-    return res.status(400).json({ error: 'name and valid division (North/South) required' });
+  if (!name || !name.trim() || !DIVISIONS.includes(division)) {
+    return res.status(400).json({ error: `name and valid division (${DIVISIONS.join('/')}) required` });
   }
   const cleanName = name.trim();
   const tz = timezone || 'UTC';

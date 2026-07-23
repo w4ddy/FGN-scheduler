@@ -180,7 +180,7 @@
       <div class="mark">FGN</div>
       <div>
         <h1>League Availability</h1>
-        <p>North &amp; South Divisions</p>
+        <p id="divisionsSubtitle">North &amp; South Divisions</p>
       </div>
     </div>
   </header>
@@ -210,10 +210,7 @@
         </div>
         <div>
           <label class="field-label">Division</label>
-          <select id="newPlayerDivision">
-            <option value="North">North</option>
-            <option value="South">South</option>
-          </select>
+          <select id="newPlayerDivision"></select>
         </div>
       </div>
       <div class="row">
@@ -294,7 +291,7 @@
 </div>
 
 <script>
-let STATE = { players: [], availability: {}, days: [], hours: [] };
+let STATE = { players: [], availability: {}, days: [], hours: [], divisions: [] };
 let currentPlayerId = localStorage.getItem('fgn_player_id') || null;
 
 const { DateTime } = luxon;
@@ -390,11 +387,26 @@ async function loadState() {
 
 function renderAll() {
   populateTzDatalist();
+  populateDivisionOptions();
   const tzInput = document.getElementById('timezoneInput');
   if (tzInput && !tzInput.value) tzInput.value = BROWSER_TZ;
   renderNameCard();
   renderMyGrid();
   renderCompareSelectors();
+}
+
+// The join form's division dropdown is built from STATE.divisions (sourced from
+// server.js's DIVISIONS array) rather than hardcoded, so renaming or adding/removing
+// divisions there is the only edit needed — nothing in this file needs to change.
+function populateDivisionOptions() {
+  const sel = document.getElementById('newPlayerDivision');
+  if (!sel || !STATE.divisions.length) return;
+  const prev = sel.value;
+  sel.innerHTML = STATE.divisions.map(d => `<option value="${d}">${d}</option>`).join('');
+  if (STATE.divisions.includes(prev)) sel.value = prev;
+
+  const subtitle = document.getElementById('divisionsSubtitle');
+  if (subtitle) subtitle.textContent = STATE.divisions.join(' & ') + (STATE.divisions.length > 1 ? ' Divisions' : ' Division');
 }
 
 // ---------- MY AVAILABILITY ----------
@@ -595,8 +607,7 @@ function renderCompareSelectors() {
     .map(p => `<option value="${p.id}">${p.name}</option>`).join('');
 
   const optHtml = '<option value="">— select —</option>'
-    + `<optgroup label="North">${byDivision('North')}</optgroup>`
-    + `<optgroup label="South">${byDivision('South')}</optgroup>`;
+    + STATE.divisions.map(div => `<optgroup label="${div}">${byDivision(div)}</optgroup>`).join('');
 
   const selA = document.getElementById('playerASelect');
   const selB = document.getElementById('playerBSelect');
