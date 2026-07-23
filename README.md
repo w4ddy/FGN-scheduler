@@ -3,6 +3,24 @@
 A tiny shared web app so your eFootball league can mark when they're free to play,
 and see at a glance when two players overlap.
 
+## How the pieces fit together
+
+Three separate things, each living in a different place:
+
+- **Code** (`server.js`, `public/index.html`, etc.) — lives in this folder on your
+  machine, mirrored on **GitHub**. GitHub is just storage/version history for the
+  code; it doesn't run anything itself.
+- **The running app** — hosted on **Render**, which pulls the code from GitHub,
+  builds it, and keeps it running 24/7 at a public URL.
+- **The data** (players, saved availability) — lives entirely separately in
+  **Neon** (Postgres). Completely independent of the code — redeploying the app
+  never touches or resets this data.
+
+The update loop: edit code locally → push to GitHub → Render notices the new
+commit and auto-redeploys. See **§3** below for the exact commands. Changing the
+*database itself* (e.g. its connection string) is a separate step done directly in
+Render's Environment settings, not via git — see **§3** and **§4** for details.
+
 ## What it does
 
 - Anyone who opens the link can add themselves (pick a name, division, timezone) and
