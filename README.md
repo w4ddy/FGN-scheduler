@@ -5,28 +5,29 @@ and see at a glance when two players overlap.
 
 ## What it does
 
-- Anyone who opens the link can pick their name (or add themselves), pick North or
-  South division, and start tapping their free times on a 7-day grid.
+- Anyone who opens the link can add themselves (pick a name, division, timezone) and
+  start tapping their free times on a 7-day grid. **Open registration** — there's no
+  pre-loaded roster; the league starts empty each season and fills up as people join.
 - Everyone shares the **same board** — no accounts, no passwords.
-- A "Compare" tab lets you pick two players from the *same* division and shows the
-  overlapping time slots, color-coded, with a plain list of matching Day/Time slots
-  underneath.
-- North and South are kept separate in Compare since they don't play cross-division.
-- Both divisions' rosters (34 players total, pulled from the league spreadsheet) are
-  pre-loaded, so nobody needs to type their name in from scratch.
+- A "Compare" tab lets you pick any two players — same division or across divisions
+  (handy for finals) — and shows the overlapping time slots, color-coded, with a
+  matching list of Day/Time slots alongside the grid on desktop, or below it on mobile.
 - Data is stored in **Postgres**, so it survives restarts/redeploys wherever you host it.
 - **Timezone-aware.** Each player's timezone is auto-detected when they join (editable
   if it's wrong). Times are saved as universal, and everyone viewing the board — in
   "My Availability" or "Compare" — sees times converted into their own local clock.
   A player in Montreal and a player in London can both use the app normally and the
   overlap shown to each of them is correct for where they are.
-- A live clock and clear "you're set to [timezone]" banner sits right above the
-  tap grid, so it's always obvious which clock you're looking at.
-- Anyone can remove themselves from the league (deletes their name and saved
-  availability) via the link at the bottom of the "My Availability" tab.
+- Live clocks (with "you're set to [timezone]" / "current time in [timezone]" banners)
+  sit above both the tap grid and the Compare overlap grid, so it's always obvious
+  which clock you're looking at.
+- Next to each player's name: **wrong timezone?**, **switch player**, and
+  **remove me** — all visible at a glance, no scrolling required.
 - The visible grid covers 06:00–00:00 by default (adjustable in `server.js`).
 - The app is fully self-contained — no external CDNs are relied on for functionality,
   so it works even with strict ad-blockers or privacy browsers like Brave Shields.
+- Desktop layouts widen to use available screen space; the Compare tab's match list
+  sits beside the grid on desktop and stacks below it on mobile.
 
 ## 1. Testing locally (before deploying anywhere)
 
@@ -52,8 +53,8 @@ Then run:
 ```bash
 node server.js
 ```
-Open **http://localhost:3000** — the app will create its tables and seed both
-divisions' rosters automatically on first run.
+Open **http://localhost:3000** — the app will create its tables automatically on
+first run. The player list starts empty; use "Join league" to add yourself.
 
 ### Recommended: test against the real (free) database you'll deploy with
 This catches any issues before you ever touch a hosting provider, since you're
@@ -93,6 +94,89 @@ This is the free, no-credit-card-required path:
 no traffic. The first person to open the link after a quiet spell will wait
 10–20 seconds for it to wake up — after that it's instant for everyone until it
 goes quiet again. Totally fine for a friend group checking availability.
+
+**This project's actual live setup**, for reference:
+- GitHub repo: `w4ddy/FGN-scheduler`
+- Render URL: `https://fgn-scheduler.onrender.com`
+
+**A gotcha we hit, in case it recurs:** GitHub can flag an account and block it
+from authorizing third-party apps (like Render) or even from serving its repos to
+logged-out visitors — even on a repo marked Public. If Render says "Repository not
+found" for a repo you can clearly see in your browser, try opening the repo's URL
+in an incognito window while logged out entirely. A 404 there (not just a login
+prompt) confirms it's an account-level GitHub restriction, not a Render or
+visibility-setting problem. The fix that worked here was pushing the same code to
+a second, freshly-created GitHub account and deploying from that instead. If this
+happens on your main account, it's worth also filing a ticket at
+[support.github.com/contact](https://support.github.com/contact) so it doesn't keep
+causing friction — flagged accounts don't reliably unflag themselves.
+
+## 3. Making changes (editing workflow)
+
+Once deployed, updating the live site is just: edit locally → commit → push. Render
+watches the connected GitHub branch and redeploys automatically on every push — no
+manual redeploy step needed for normal changes.
+
+```bash
+# after editing server.js and/or public/index.html locally:
+git add .
+git commit -m "short description of what changed"
+git push w4ddy main
+```
+
+(`w4ddy` here is the name of the git remote pointing at the GitHub repo Render is
+watching — check yours with `git remote -v` if you're not sure what to use instead.)
+
+Within a few seconds of the push, a new deploy will kick off automatically —
+watch it happen live under **Render → your service → Deploys**, or the **Logs** tab
+for the build/start output. A typical deploy (this app) takes well under a minute.
+
+**Things that do NOT trigger a redeploy on their own:**
+- Editing `.env` locally — that file never leaves your machine (it's gitignored on
+  purpose). If you need to change an environment variable in production (like
+  `DATABASE_URL`), you have to update it separately in **Render → Environment**, not
+  in your local `.env`.
+- Changes to files not committed/pushed — `git status` before pushing if you're ever
+  unsure what's staged.
+
+## 4. Redeploying / troubleshooting a failed deploy
+
+**To manually trigger a redeploy** (e.g. after fixing an environment variable, or
+just to restart the app without any code change):
+1. Go to your service on [dashboard.render.com](https://dashboard.render.com)
+2. Click **Manual Deploy** (top right of the service page) → **Deploy latest commit**
+
+**If a deploy fails, read the Logs tab first** — it's the fastest way to diagnose:
+- Go to your service → **Logs** (left sidebar)
+- Scroll to the failed deploy's output. Common failure points and what they usually mean:
+  - Fails during `npm install` → almost always a `package.json`/`package-lock.json`
+    problem, or a dependency that needs a newer Node version. Check the error message
+    for the specific package it choked on.
+  - Fails right after "Deploying..." or the app immediately crashes → usually a
+    missing or wrong `DATABASE_URL`. Go to **Environment** (left sidebar) and confirm
+    the variable is set and the connection string is correct (copy it fresh from Neon
+    if in doubt — a rotated password is a common cause here).
+  - App builds and starts, but the live URL shows an error page or blank screen →
+    check the browser's DevTools Console for JavaScript errors; this usually points
+    to a bug in `public/index.html` rather than the server itself.
+
+**If the database connection itself seems broken** (not just the env var):
+1. Log into [neon.tech](https://neon.tech) and confirm the project/database is still
+   active — free-tier Neon projects can be auto-suspended after a long period of
+   total inactivity, but they wake up again on the next connection attempt, so this
+   is rarely the actual cause of a hard failure.
+2. Try running the same `DATABASE_URL` locally (`node server.js` with your `.env`
+   pointed at it) — if it fails the same way locally, the problem is the database/
+   connection string, not Render.
+
+**If you ever need to roll back** to a previous working version:
+1. Go to your service → **Deploys**
+2. Find an earlier deploy that was working (marked with a past "Live" status)
+3. Click the **⋯** menu next to it → **Redeploy** (or "Rollback to this deploy,"
+   depending on Render's current UI wording)
+
+This redeploys that exact old commit without needing to touch git at all — useful
+for getting back online quickly while you debug the actual issue locally.
 
 ## Adjusting the days/hours shown
 
